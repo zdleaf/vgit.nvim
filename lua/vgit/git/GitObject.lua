@@ -9,17 +9,15 @@ local Object = require('vgit.core.Object')
 local GitObject = Object:extend()
 
 function GitObject:constructor(filename)
-  local dirname = fs.dirname(filename)
-
   return {
-    git = Git(dirname),
+    git = Git(true),
     hunks = nil,
-    dirname = dirname,
     filename = {
       native = filename,
       tracked = nil,
     },
     filetype = fs.detect_filetype(filename),
+    filetype = nil,
     _cache = {
       line_blames = {},
     },
@@ -33,6 +31,8 @@ function GitObject:get_filetype() return self.filetype end
 function GitObject:is_tracked() return self:tracked_filename() ~= '' end
 
 function GitObject:is_in_remote() return self.git:is_in_remote(self:tracked_filename()) end
+
+function GitObject:show(tracked_filename, commit_hash) return self.git:show(tracked_filename, commit_hash) end
 
 function GitObject:tracked_filename()
   if self.filename.tracked == nil then
@@ -84,7 +84,7 @@ function GitObject:stage()
   local filename = self:tracked_filename()
 
   if not self:is_tracked() then
-    filename = utils.str.strip(self.filename.native, self.dirname)
+    filename = self.filename.native
   end
 
   return self.git:stage_file(filename)
@@ -239,8 +239,8 @@ end
 
 function GitObject:staged_hunks() return self.git:staged_hunks(self:tracked_filename(), { is_background = true }) end
 
-function GitObject:remote_hunks(parent_hash, commit_hash)
-  return self.git:remote_hunks(self:tracked_filename(), parent_hash, commit_hash, { is_background = true })
+function GitObject:remote_hunks(filename, parent_hash, commit_hash)
+  return self.git:remote_hunks(filename, parent_hash, commit_hash, { is_background = true })
 end
 
 function GitObject:logs()
@@ -248,6 +248,8 @@ function GitObject:logs()
     is_background = true,
   })
 end
+
+function GitObject:log(commit_hash) return self.git:log(commit_hash) end
 
 function GitObject:status() return self.git:file_status(self:tracked_filename()) end
 

@@ -10,7 +10,6 @@ function Store:constructor()
   return {
     err = nil,
     shape = nil,
-    git = Git(),
     git_object = nil,
     _cache = {
       blame = nil,
@@ -55,7 +54,7 @@ function Store:fetch(shape, filename, lnum, opts)
     return { 'Line is uncommitted' }
   end
 
-  local log_err, log = self.git:log(blame.commit_hash)
+  local log_err, log = self.git_object:log(blame.commit_hash)
 
   if log_err then
     return log_err
@@ -72,11 +71,11 @@ function Store:fetch(shape, filename, lnum, opts)
   filename = blame.filename
 
   loop.free_textlock()
-  if not self.git:is_in_remote(filename, commit_hash) then
+  if not self.git_object:is_in_remote(filename, commit_hash) then
     is_deleted = true
-    lines_err, lines = self.git:show(filename, parent_hash)
+    lines_err, lines = self.git_object:show(filename, parent_hash)
   else
-    lines_err, lines = self.git:show(filename, commit_hash)
+    lines_err, lines = self.git_object:show(filename, commit_hash)
   end
 
   if lines_err then
@@ -85,9 +84,9 @@ function Store:fetch(shape, filename, lnum, opts)
 
   local hunks_err, hunks
   if is_deleted then
-    hunks = self.git:deleted_hunks(lines)
+    hunks = self.git_object:deleted_hunks(lines)
   else
-    hunks_err, hunks = self.git:remote_hunks(filename, parent_hash, commit_hash)
+    hunks_err, hunks = self.git_object:remote_hunks(filename, parent_hash, commit_hash)
   end
   loop.free_textlock()
 

@@ -7,7 +7,6 @@ local GitBuffer = Buffer:extend()
 
 function GitBuffer:sync()
   Buffer.sync(self)
-
   self.git_object = GitObject(self.filename)
   self.live_signs = {}
   self.is_processing = false

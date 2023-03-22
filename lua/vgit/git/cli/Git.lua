@@ -12,9 +12,10 @@ local git_setting = require('vgit.settings.git')
 
 local Git = Object:extend()
 
-function Git:constructor(cwd)
+function Git:constructor(set_cwd)
+  local err = {}
   local newself = {
-    cwd = cwd or '',
+    cwd = '',
     cmd = git_setting:get('cmd'),
     fallback_args = {},
     diff_algorithm = 'myers',
@@ -23,7 +24,12 @@ function Git:constructor(cwd)
       config = nil,
     },
   }
-  if cwd and not self.is_inside_git_dir(newself) then
+  if set_cwd and self.is_inside_git_dir(newself) then
+    err, newself.cwd = self.get_git_toplevel(newself)
+    if err then
+      console.debug.error(err)
+    end
+  elseif set_cwd and not self.is_inside_git_dir(newself) then
     newself.cwd = git_setting:get('fallback_cwd') or ''
     newself.fallback_args = vim.deepcopy(git_setting:get('fallback_args'))
   end
@@ -116,6 +122,30 @@ Git.has_commits = loop.suspend(function(self, spec, callback)
   }, spec)):start()
 end, 3)
 
+Git.get_git_toplevel = loop.suspend(function(self, spec, callback)
+  local err = {}
+  local lines = {}
+
+  GitReadStream(utils.object.defaults({
+    command = self.cmd,
+    args = utils.list.merge(self.fallback_args, {
+      '-C',
+      self.cwd,
+      'rev-parse',
+      '--show-toplevel',
+    }),
+    on_stderr = function(line) err[#err + 1] = line end,
+    on_stdout = function(line) lines[#lines + 1] = line end,
+    on_exit = function()
+      if #err ~= 0 then
+        return callback(err, '')
+      end
+
+      callback(nil, lines[1])
+    end,
+  }, spec)):start()
+end, 3)
+
 Git.get_git_dir = loop.suspend(function(self, spec, callback)
   local err = {}
   local lines = {}
@@ -202,7 +232,6 @@ Git.blames = loop.suspend(function(self, filename, spec, callback)
 end, 4)
 
 Git.blame_line = loop.suspend(function(self, filename, lnum, spec, callback)
-  filename = fs.make_relative(filename, self.cwd)
   local err = {}
   local result = {}
 
@@ -634,7 +663,7 @@ Git.show = loop.suspend(function(self, tracked_filename, commit_hash, spec, call
       '-C',
       self.cwd,
       'show',
-      string.format('%s:%s%s', commit_hash, self.cwd, tracked_filename),
+      string.format('%s:%s', commit_hash, tracked_filename),
     }),
     on_stdout = function(line) result[#result + 1] = line end,
     on_stderr = function(line) err[#err + 1] = line end,
@@ -658,7 +687,7 @@ Git.is_in_remote = loop.suspend(function(self, tracked_filename, commit_hash, sp
       '-C',
       self.cwd,
       'show',
-      string.format('%s:%s%s', commit_hash, self.cwd, tracked_filename),
+      string.format('%s:%s', commit_hash, tracked_filename),
     }),
     on_stderr = function(line)
       if line then

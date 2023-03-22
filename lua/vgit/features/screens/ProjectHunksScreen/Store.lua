@@ -12,7 +12,7 @@ function Store:constructor()
     err = nil,
     data = nil,
     shape = nil,
-    git = Git(),
+    git = Git(true),
     _cache = {
       lnum = 1,
       list_entry_cache = {},

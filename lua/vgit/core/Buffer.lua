@@ -16,8 +16,7 @@ function Buffer:constructor(bufnr)
   -- 0 represents the current buffer.
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
-    local bufname = vim.api.nvim_buf_get_name(bufnr)
-    filename = fs.relative_filename(bufname)
+    filename = vim.api.nvim_buf_get_name(bufnr)
   end
 
   return {
@@ -176,8 +175,7 @@ function Buffer:clear_namespace()
 end
 
 function Buffer:sync()
-  local bufname = vim.api.nvim_buf_get_name(self.bufnr)
-  self.filename = fs.relative_filename(bufname)
+  self.filename = vim.api.nvim_buf_get_name(self.bufnr)
 
   return self
 end
